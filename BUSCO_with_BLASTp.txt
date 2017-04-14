@@ -1,0 +1,89 @@
+Here are the steps I use to setup a BUSCO run to test it for BLASTp usage.
+NOTE: lines below a <<< instruction >>> type instruction are for the command line
+
+1) start an AWS instance: ubuntu c4.2xlarge and increase storage (50G - 100G should do)
+
+2) <<< update and upgrade computer >>>
+sudo apt-get update && sudo apt-get -y upgrade
+
+3) <<< install build-essential and git >>>
+sudo apt-get -y install build-essential git
+
+4) <<< install Ruby >>>
+cd
+wget https://keybase.io/mpapis/key.asc
+gpg --import key.asc
+\curl -sSL https://get.rvm.io | bash -s stable --ruby
+source /home/ubuntu/.rvm/scripts/rvm
+
+5) <<< install LinuxBrew >>>
+sudo mkdir /home/linuxbrew
+sudo chown $USER:$USER /home/linuxbrew
+git clone https://github.com/Linuxbrew/brew.git /home/linuxbrew/.linuxbrew
+echo 'export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"' >> ~/.profile
+echo 'export MANPATH="/home/linuxbrew/.linuxbrew/share/man:$MANPATH"' >> ~/.profile
+echo 'export INFOPATH="/home/linuxbrew/.linuxbrew/share/info:$INFOPATH"' >> ~/.profile
+source ~/.profile
+brew tap Gen711/homebrew-science
+brew update
+brew doctor
+
+6) <<< install Python3, BLAST, and HMMER >>>
+brew install python3 blast hmmer
+
+7) <<< download Augustus and unpack the archive >>>
+wget http://bioinf.uni-greifswald.de/augustus/binaries/augustus-3.2.3.tar.gz
+tar -xzf augustus-3.2.3.tar.gz
+
+8) <<< change into Augustus directory and open common.mk in the nano editor >>>
+cd ~/augustus-3.2.2/
+nano common.mk
+
+9) change line 7 (i.e., add the #) in common.mk to the following:
+# ZIPINPUT = true
+
+10) <<< change into /etc/apt/ and open sources.list in the nano editor >>>
+cd /etc/apt/
+sudo nano sources.list
+
+11) add the following line at the bottom of sources.list:
+deb http://us.archive.ubuntu.com/ubuntu vivid main universe
+
+12) <<< install bamtools and libbamtools-dev >>>
+cd
+sudo apt-get -y install bamtools libbamtools-dev
+
+13) <<< compile Augustus and verify successful compilation by printing a usage message >>>
+cd ~/augustus-3.2.2/
+make
+bin/augustus
+
+14) <<< export paths to Augustus binaries and scripts and set the Augustus configuration path environment variable >>>
+export PATH=/home/ubuntu/augustus-3.2.2/bin:$PATH
+export PATH=/home/ubuntu/augustus-3.2.2/scripts:$PATH
+export AUGUSTUS_CONFIG_PATH=/home/ubuntu/augustus-3.2.2/config
+
+15) <<< download BUSCOmod.py into the busco directory and modify its permissions >>>
+mkdir ~/busco
+cd ~/busco
+wget https://raw.githubusercontent.com/holsapple/busco/master/BUSCOmod.py
+chmod 775 BUSCOmod.py
+
+16) <<< create a test directory, download test fasta files, and unzip them >>>
+mkdir ~/busco/test_dir
+cd ~/busco/test_dir
+wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/007/085/GCF_000007085.1_ASM708v1/GCF_000007085.1_ASM708v1_genomic.fna.gz
+wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/007/085/GCF_000007085.1_ASM708v1/GCF_000007085.1_ASM708v1_protein.faa.gz
+gzip -d GCF_000007085.1_ASM708v1_genomic.fna.gz
+gzip -d GCF_000007085.1_ASM708v1_protein.faa.gz
+
+17) <<< download a BUSCO lineage dataset and unpack the archive >>>
+wget http://cegg.unige.ch/pub/BUSCO2/clostridia_odb9.tar.gz
+tar -xzf clostridia_odb9.tar.gz
+
+18) <<< run BUSCOmod.py without the -bp option >>>
+cd ~/busco
+python3 BUSCOmod.py -i test_dir/GCF_000007085.1_ASM708v1_genomic.fna -o test_nuc -l test_dir/clostridia_odb9 -m tran -c 8 -sp thermoanaerobacter_tengcongensis
+
+19) <<< run BUSCOmod.py with the -bp option >>>
+python3 BUSCOmod.py -i test_dir/GCF_000007085.1_ASM708v1_protein.faa -o test_prot -l test_dir/clostridia_odb9 -m tran -c 8 -sp thermoanaerobacter_tengcongensis -bp
